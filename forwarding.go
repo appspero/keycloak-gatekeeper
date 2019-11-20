@@ -19,10 +19,14 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"context"
 
 	"github.com/coreos/go-oidc/jose"
 	"github.com/coreos/go-oidc/oidc"
 	"go.uber.org/zap"
+
+	"go.opentelemetry.io/otel/global"
+	"go.opentelemetry.io/otel/plugin/httptrace"
 )
 
 // proxyMiddleware is responsible for handles reverse proxy request to the upstream endpoint
@@ -73,7 +77,14 @@ func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		r.upstream.ServeHTTP(w, req)
+		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
+		tr.WithSpan(req.Context(), "reverseProxy",
+			func(ctx context.Context) error {
+				ctx, req = httptrace.W3C(ctx, req)
+				httptrace.Inject(ctx, req)
+				r.upstream.ServeHTTP(w, req)
+				return nil
+			})
 	})
 }
 
