@@ -30,6 +30,11 @@ import (
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"go.opentelemetry.io/otel/api/distributedcontext"
+	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/global"
+	"go.opentelemetry.io/otel/plugin/httptrace"
 )
 
 const (
@@ -64,6 +69,35 @@ func entrypointMiddleware(next http.Handler) http.Handler {
 		req.URL.Path = keep
 		req.URL.RawPath = keep
 		req.RequestURI = keep
+	})
+}
+
+// tracingMiddleware iss responsible for tracing a request
+func (r *oauthProxy) tracingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
+
+		attrs, entries, spanCtx := httptrace.Extract(req.Context(), req)
+
+		req = req.WithContext(distributedcontext.WithMap(req.Context(), distributedcontext.NewMap(distributedcontext.MapUpdate{
+			MultiKV: entries,
+		})))
+
+		ctx, span := tr.Start(
+			req.Context(),
+			"oauthProxy",
+			trace.WithAttributes(attrs...),
+			trace.ChildOf(spanCtx),
+		)
+
+		defer span.End()
+
+		span.AddEvent(ctx, "tracing keycloak-gatekeeper request")
+
+		req = req.WithContext(ctx)
+
+		next.ServeHTTP(w, req)
 	})
 }
 

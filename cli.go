@@ -82,6 +82,8 @@ func newOauthProxyApp() *cli.App {
 		signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		<-signalChannel
 
+		proxy.Stop()
+
 		return nil
 	}
 

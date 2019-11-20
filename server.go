@@ -45,6 +45,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
+
+	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/exporter/trace/jaeger"
+	"go.opentelemetry.io/otel/global"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 type oauthProxy struct {
@@ -61,6 +67,7 @@ type oauthProxy struct {
 	store          storage
 	templates      *template.Template
 	upstream       reverseProxy
+	jaegerExporter *jaeger.Exporter
 }
 
 func init() {
@@ -75,6 +82,7 @@ func init() {
 
 // newProxy create's a new proxy from configuration
 func newProxy(config *Config) (*oauthProxy, error) {
+
 	// create the service logger
 	log, err := createLogger(config)
 	if err != nil {
@@ -86,6 +94,13 @@ func newProxy(config *Config) (*oauthProxy, error) {
 		config:         config,
 		log:            log,
 		metricsHandler: promhttp.Handler(),
+	}
+
+	// init jaeger tracing
+	if config.Tracing != nil {
+		if svc.jaegerExporter, err = initTracer(config); err != nil {
+			return nil, err
+		}
 	}
 
 	// parse the upstream endpoint
@@ -418,6 +433,11 @@ func (r *oauthProxy) Run() error {
 	return nil
 }
 
+// Stop stops the proxy service
+func (r *oauthProxy) Stop() {
+	r.jaegerExporter.Flush()
+}
+
 // listenerConfig encapsulate listener options
 type listenerConfig struct {
 	ca                  string   // the path to a certificate authority
@@ -731,4 +751,39 @@ func (r *oauthProxy) newOpenIDClient() (*oidc.Client, oidc.ProviderConfig, *http
 // Render implements the echo Render interface
 func (r *oauthProxy) Render(w io.Writer, name string, data interface{}) error {
 	return r.templates.ExecuteTemplate(w, name, data)
+}
+
+// registers global trace provider.
+func initTracer(config *Config) (*jaeger.Exporter, error) {
+
+	var tags []core.KeyValue
+	for k, v := range config.Tracing.JaegerTags {
+		tags = append(tags, key.String(k, v))
+	}
+
+	// Create Jaeger Exporter
+	exporter, err := jaeger.NewExporter(
+		jaeger.WithAgentEndpoint(config.Tracing.JaegerAgentEndpoint),
+		jaeger.WithProcess(jaeger.Process{
+			ServiceName: config.Tracing.JaegerServiceName,
+			Tags: tags,
+		}),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sampler := sdktrace.ProbabilitySampler(config.Tracing.ProbabilitySampler)
+
+	tp, err := sdktrace.NewProvider(
+		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}),
+		sdktrace.WithSyncer(exporter))
+
+	if err != nil {
+		return nil, err
+	}
+
+	global.SetTraceProvider(tp)
+	return exporter, nil
 }

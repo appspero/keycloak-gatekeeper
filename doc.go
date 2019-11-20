@@ -151,6 +151,17 @@ type Resource struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+type TracingSpec struct {
+	// Endpoint of jaeger agent
+	JaegerAgentEndpoint string `json:"jaeger-agent-endpoint" yaml:"jaeger-agent-endpoint"`
+	// Jaeger service name
+	JaegerServiceName string `json:"jaeger-service-name" yaml:"jaeger-service-name"`
+	// Tags that added to jaeger process exports
+	JaegerTags map[string]string `json:"jaeger-tags" yaml:"jaeger-tags"`
+	// Sample a given fraction of traces. Fractions >= 1 will always sample.
+	ProbabilitySampler float64 `json:"probability-sampler" yaml:"probability-sampler"`
+}
+
 // Config is the configuration for the proxy
 type Config struct {
 	// ConfigFile is the binding interface
@@ -363,6 +374,8 @@ type Config struct {
 
 	// DisableAllLogging indicates no logging at all
 	DisableAllLogging bool `json:"disable-all-logging" yaml:"disable-all-logging" usage:"disables all logging to stdout and stderr"`
+
+	Tracing *TracingSpec `json:"tracing" yaml:"tracing" usage:"configure OpenTelemetry jaeger tracing"`
 }
 
 // getVersion returns the proxy version
