@@ -71,6 +71,7 @@ func newDefaultConfig() *Config {
 		UpstreamTLSHandshakeTimeout:   10 * time.Second,
 		UpstreamTimeout:               10 * time.Second,
 		UseLetsEncrypt:                false,
+		EnableTracing:                 false,
 	}
 }
 
@@ -209,6 +210,21 @@ func (r *Config) isValid() error {
 			if _, err := regexp.Compile(claim); err != nil {
 				return fmt.Errorf("the claim matcher: %s for claim: %s is not a valid regex", claim, k)
 			}
+		}
+	}
+
+	if r.EnableTracing {
+		if r.JaegerAgentEndpoint == "" {
+			return errors.New("you have not specified the Jaeger agent endpoint")
+		}
+		if r.JaegerServiceName == "" {
+			return errors.New("you have not specified the Jaeger service name")
+		}
+		if r.JaegerTags == nil {
+			return errors.New("you have not specified the Jaeger process tags")
+		}
+		if r.TracingProbabilitySampler == 0 {
+			return errors.New("you have not specified the tracing probability sampler")
 		}
 	}
 

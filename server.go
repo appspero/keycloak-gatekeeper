@@ -97,7 +97,7 @@ func newProxy(config *Config) (*oauthProxy, error) {
 	}
 
 	// init jaeger tracing
-	if config.Tracing != nil {
+	if config.EnableTracing {
 		if svc.jaegerExporter, err = initTracer(config); err != nil {
 			return nil, err
 		}
@@ -760,15 +760,15 @@ func (r *oauthProxy) Render(w io.Writer, name string, data interface{}) error {
 func initTracer(config *Config) (*jaeger.Exporter, error) {
 
 	var tags []core.KeyValue
-	for k, v := range config.Tracing.JaegerTags {
+	for k, v := range config.JaegerTags {
 		tags = append(tags, key.String(k, v))
 	}
 
 	// Create Jaeger Exporter
 	exporter, err := jaeger.NewExporter(
-		jaeger.WithAgentEndpoint(config.Tracing.JaegerAgentEndpoint),
+		jaeger.WithAgentEndpoint(config.JaegerAgentEndpoint),
 		jaeger.WithProcess(jaeger.Process{
-			ServiceName: config.Tracing.JaegerServiceName,
+			ServiceName: config.JaegerServiceName,
 			Tags: tags,
 		}),
 	)
@@ -777,7 +777,7 @@ func initTracer(config *Config) (*jaeger.Exporter, error) {
 		return nil, err
 	}
 
-	sampler := sdktrace.ProbabilitySampler(config.Tracing.ProbabilitySampler)
+	sampler := sdktrace.ProbabilitySampler(config.TracingProbabilitySampler)
 
 	tp, err := sdktrace.NewProvider(
 		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sampler}),

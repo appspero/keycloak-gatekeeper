@@ -150,6 +150,12 @@ func getCommandLineOptions() []cli.Flag {
 			default:
 				panic("unknown uint64 type in the Config struct")
 			}
+		case reflect.Float64:
+			flags = append(flags, cli.Float64Flag{
+				Name:   optName,
+				Usage:  usage,
+				EnvVar: envName,
+			})
 		default:
 			errMsg := fmt.Sprintf("field: %s, type: %s, kind: %s is not being handled", field.Name, t.String(), t.Kind())
 			panic(errMsg)
@@ -189,6 +195,8 @@ func parseCLIOptions(cx *cli.Context, config *Config) (err error) {
 				default:
 					reflect.ValueOf(config).Elem().FieldByName(field.Name).SetInt(cx.Int64(name))
 				}
+			case reflect.Float64:
+				reflect.ValueOf(config).Elem().FieldByName(field.Name).Set(reflect.ValueOf(cx.Float64(name)))
 			}
 		}
 	}
