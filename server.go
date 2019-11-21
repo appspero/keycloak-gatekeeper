@@ -186,7 +186,9 @@ func (r *oauthProxy) createReverseProxy() error {
 	engine.Use(entrypointMiddleware)
 
 	// enable the tracing middleware
-	engine.Use(r.tracingMiddleware)
+	if r.config.EnableTracing {
+		engine.Use(r.tracingMiddleware)
+	}
 
 	if r.config.EnableLogging {
 		engine.Use(r.loggingMiddleware)

@@ -32,7 +32,15 @@ import (
 // proxyMiddleware is responsible for handles reverse proxy request to the upstream endpoint
 func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		next.ServeHTTP(w, req)
+
+		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper/reverseProxy")
+		tr.WithSpan(req.Context(), "serve",
+			func(ctx context.Context) error {
+				ctx, req = httptrace.W3C(ctx, req)
+				httptrace.Inject(ctx, req)
+				next.ServeHTTP(w, req)
+				return nil
+			})
 
 		// @step: retrieve the request scope
 		scope := req.Context().Value(contextScopeName)
@@ -77,8 +85,8 @@ func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
-		tr.WithSpan(req.Context(), "reverseProxy",
+		//tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
+		tr.WithSpan(req.Context(), "upstream",
 			func(ctx context.Context) error {
 				ctx, req = httptrace.W3C(ctx, req)
 				httptrace.Inject(ctx, req)
