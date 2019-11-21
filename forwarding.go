@@ -31,13 +31,13 @@ import (
 
 // proxyMiddleware is responsible for handles reverse proxy request to the upstream endpoint
 func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
+
+	tr := global.TraceProvider().GetTracer("keycloak/gatekeeper/reverseProxy")
+
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper/reverseProxy")
 		tr.WithSpan(req.Context(), "serve",
 			func(ctx context.Context) error {
-				ctx, req = httptrace.W3C(ctx, req)
-				httptrace.Inject(ctx, req)
 				next.ServeHTTP(w, req)
 				return nil
 			})
