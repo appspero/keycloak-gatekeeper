@@ -74,9 +74,10 @@ func entrypointMiddleware(next http.Handler) http.Handler {
 
 // tracingMiddleware iss responsible for tracing a request
 func (r *oauthProxy) tracingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
+	tr := global.TraceProvider().GetTracer("keycloak/gatekeeper")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		attrs, entries, spanCtx := httptrace.Extract(req.Context(), req)
 
