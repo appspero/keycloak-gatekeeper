@@ -440,7 +440,9 @@ func (r *oauthProxy) Run() error {
 
 // Stop stops the proxy service
 func (r *oauthProxy) Stop() {
-	r.jaegerExporter.Flush()
+	if r.config.EnableTracing {
+		r.jaegerExporter.Flush()
+	}
 }
 
 // listenerConfig encapsulate listener options
